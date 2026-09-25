@@ -1,79 +1,88 @@
-"""your-first-memory — a memory for a model that has none.
+"""my-first-mem — a memory for thinking patterns.
 
-Last week's instrument gave your model a sense of time. But ask it
-"what did we say last Tuesday?" and it can only guess: nothing survives
-the end of a conversation. This server is the smallest honest fix —
-a table, two tools, and suddenly there is a *record*. The pattern
-generalizes to anything worth keeping. See docs/adr/ for every choice
-made here — each one records a real decision with the road not taken.
+This server lets a model record thinking patterns that I notice
+and retrieve them later, even across different conversations.
 """
+
 import os
 from mcp.server.fastmcp import FastMCP
-
 import psycopg
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 mcp = FastMCP(
-    "your-first-memory",
+    "my-first-mem",
     host="0.0.0.0",
     port=int(os.environ.get("PORT", 8000)),
 )
 
 SCHEMA = """
-CREATE TABLE IF NOT EXISTS quotes (
+CREATE TABLE IF NOT EXISTS patterns (
     id          SERIAL PRIMARY KEY,
-    quote       TEXT NOT NULL,
-    who         TEXT,                          -- optional: unattributed quotes are allowed (ADR-0004)
+    pattern     TEXT NOT NULL,
+    note        TEXT,
     recorded_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 """
 
 
 def db():
-    """One connection per tool call (ADR-0002): Neon's free tier suspends
-    when idle, and a fresh connection wakes it transparently. A held pool
-    would die during the nap and greet you with a stale-connection error."""
+    """Connect to the database."""
     if not DATABASE_URL:
         raise RuntimeError(
-            "DATABASE_URL is not set. Not an error in the code — a feature "
-            "waiting for setup: create a free database at neon.tech, copy the "
-            "connection string, and set it as an environment variable "
-            "(COURSE-STEPS.md, step 2)."
+            "DATABASE_URL is not set. Create a database at neon.tech "
+            "and set the connection string as an environment variable."
         )
+
     conn = psycopg.connect(DATABASE_URL)
+
     with conn.cursor() as cur:
         cur.execute(SCHEMA)
+
     conn.commit()
     return conn
 
 
 @mcp.tool()
-def record_quote(quote: str, who: str = "") -> str:
-    """Save a quote worth keeping. `who` is optional — a quote you can't
-    place is still worth remembering."""
+def record_pattern(pattern: str, note: str = "") -> str:
+    """Save a thinking pattern that I want to remember."""
+
     with db() as conn, conn.cursor() as cur:
         cur.execute(
-            "INSERT INTO quotes (quote, who) VALUES (%s, %s) RETURNING id, recorded_at",
-            (quote, who or None),
+            "INSERT INTO patterns (pattern, note) VALUES (%s, %s) "
+            "RETURNING id, recorded_at",
+            (pattern, note or None),
         )
-        qid, ts = cur.fetchone()
+
+        pattern_id, ts = cur.fetchone()
         conn.commit()
-    return f"Recorded as quote #{qid} at {ts.isoformat()}."
+
+    return f"Recorded thinking pattern #{pattern_id} at {ts.isoformat()}."
 
 
 @mcp.tool()
-def list_quotes() -> str:
-    """Every quote in the memory, oldest first."""
+def list_patterns() -> str:
+    """List all thinking patterns in memory, oldest first."""
+
     with db() as conn, conn.cursor() as cur:
-        cur.execute("SELECT id, quote, who, recorded_at FROM quotes ORDER BY id")
+        cur.execute(
+            "SELECT id, pattern, note, recorded_at "
+            "FROM patterns ORDER BY id"
+        )
+
         rows = cur.fetchall()
+
     if not rows:
-        return "The memory is empty. Record something worth keeping."
+        return "No thinking patterns have been recorded yet."
+
     lines = []
-    for qid, quote, who, ts in rows:
-        attribution = f" — {who}" if who else ""
-        lines.append(f'#{qid} ({ts:%Y-%m-%d %H:%M}): "{quote}"{attribution}')
+
+    for pattern_id, pattern, note, ts in rows:
+        extra = f" — {note}" if note else ""
+        lines.append(
+            f'#{pattern_id} ({ts:%Y-%m-%d %H:%M}): "{pattern}"{extra}'
+        )
+
     return "\n".join(lines)
 
 
