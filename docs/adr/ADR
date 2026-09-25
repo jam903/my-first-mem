@@ -1,0 +1,15 @@
+# ADR-0005: Store thinking patterns instead of quotes
+
+## Decision
+
+I changed the memory from storing quotes to storing thinking patterns.
+
+Each entry stores a thinking pattern, an optional note, and the time it was recorded. The server provides two tools: `record_pattern` and `list_patterns`.
+
+## Why
+
+I wanted the memory to be useful for reflecting on patterns in my own reasoning rather than storing general quotes. The optional note lets me record context about how I recognize a pattern or why it matters.
+
+## Alternative considered
+
+I could have kept the original quote system, but thinking patterns are more relevant to how I would personally use persistent memory.
