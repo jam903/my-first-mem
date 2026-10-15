@@ -1,9 +1,11 @@
+
 [project]
 name = "your-first-memory"
 version = "0.1.0"
-description = "A memory for a model that has none — CAM session-5 starter (record quotes, list quotes, Neon Postgres)"
+description = "A memory for thinking patterns with Neon Postgres"
 requires-python = ">=3.11"
 dependencies = [
-    "mcp[cli]>=1.2,<2",       # pinned: mcp 2.x renamed FastMCP (also pinned in render.yaml — buildCommand bypasses this file)
+    "mcp[cli]>=1.2,<2",
     "psycopg[binary]>=3.1",
+    "PyJWT[crypto]>=2.8",
 ]
